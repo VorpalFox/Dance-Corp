@@ -4,7 +4,7 @@ import { AppComponent } from 'src/app/app.component'
 import { ArrowDirection } from 'src/app/game/constants/arrow-direction.enum'
 import { DancePadGamepad } from 'src/app/game/game-controller/dancepad-gamepad'
 
-import { Component, inject } from '@angular/core'
+import { ChangeDetectorRef, Component, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { GamepadService } from 'src/app/services/gameplay/gamepad.service'
 import { HeaderComponent } from "src/app/shared/component/header/header.component"
@@ -22,9 +22,11 @@ export class PadTestPage {
   gamepadService = inject(GamepadService)
   userConfigService = inject(UserConfigService)
   private alertController = inject(AlertController)
+  private cd = inject(ChangeDetectorRef)
 
   readonly ArrowDirection = ArrowDirection
   readonly KEYBOARD_ID = Player.KEYBOARD_ID
+  readonly GetDisplayName = GamepadService.GetDisplayName
   readonly arrowKeys = Object.values(ArrowDirection).filter(value => typeof value === 'number')
   playerIndexSelected: number | undefined
   playerSelected: Player | undefined
@@ -61,7 +63,7 @@ export class PadTestPage {
 
     const alert = await this.alertController.create({
       header: 'Waiting for Input',
-      message: `Press a button on your ${gamepadId} for ${ArrowDirection[arrowDirection].toUpperCase()}`,
+      message: `Press a button on your ${GamepadService.GetDisplayName(gamepadId)} for ${ArrowDirection[arrowDirection].toUpperCase()}`,
       backdropDismiss: false,
     })
 
@@ -89,6 +91,7 @@ export class PadTestPage {
         if (gamepad.buttons[i].pressed) {
           // Bind the action to the pressed button
           this.gampadBindings.set(arrowDirection, i)
+          this.cd.markForCheck()
           this.waitingForInput = false
           void alert.dismiss()
           return
@@ -109,6 +112,7 @@ export class PadTestPage {
       }
       // Bind the action to the pressed button
       this.keyboardBindings.set(arrowDirection, event.key)
+      this.cd.markForCheck()
       this.waitingForInput = false
       void alert.dismiss()
       window.removeEventListener('keydown', checkKeyboardInput)

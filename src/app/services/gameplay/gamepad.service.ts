@@ -1,4 +1,4 @@
-import { Injectable, NgZone, inject } from '@angular/core'
+import { Injectable, NgZone, inject, signal } from '@angular/core'
 
 import { NativeGamepad, NativeGamepadService } from '../thirdpartyapp/native-gamepad.service'
 
@@ -22,11 +22,10 @@ export class GamepadService {
     private nativeGamepadService = inject(NativeGamepadService)
     private ngZone = inject(NgZone)
 
-    private gamepads: GamepadReference[] = []
+    // Ids of the gamepads the webview sees
+    private webGamepadIds = signal<string[]>([])
 
     constructor() {
-        this.gamepads = [{ id: Player.KEYBOARD_ID }]
-
         this.OnGamepadConnect = this.OnGamepadConnect.bind(this)
         this.OnGamepadDisconnect = this.OnGamepadDisconnect.bind(this)
         window.addEventListener("gamepadconnected", this.OnGamepadConnect)
@@ -38,21 +37,21 @@ export class GamepadService {
     OnGamepadConnect(event: GamepadEvent) {
         const gamepad = event.gamepad
         console.log('Gamepad connected : ' + gamepad.id)
-        if (!this.gamepads.some(g => g.id === gamepad.id))
-            this.gamepads.push({ id: gamepad.id })
+        if (!this.webGamepadIds().includes(gamepad.id))
+            this.webGamepadIds.update(ids => [...ids, gamepad.id])
 
         const playerName = this.GetAssignedPlayerName(gamepad.id)
         if (playerName !== null)
-            AppComponent.PresentOkToast(`${playerName}: gamepad ${gamepad.id} connected`)
+            AppComponent.PresentOkToast(`${playerName}: gamepad ${GamepadService.GetDisplayName(gamepad.id)} connected`)
     }
 
     OnGamepadDisconnect(event: GamepadEvent) {
         console.log('Gamepad disconnected : ' + event.gamepad.id)
-        this.gamepads = this.gamepads.filter(g => g.id !== event.gamepad.id)
+        this.webGamepadIds.update(ids => ids.filter(id => id !== event.gamepad.id))
 
         const playerName = this.GetAssignedPlayerName(event.gamepad.id)
         if (playerName !== null)
-            AppComponent.PresentWarningToast(`${playerName}: gamepad ${event.gamepad.id} disconnected`)
+            AppComponent.PresentWarningToast(`${playerName}: gamepad ${GamepadService.GetDisplayName(event.gamepad.id)} disconnected`)
     }
 
     // Desktop: a gamepad plugged in before the webview sees it waits for a button press
@@ -64,8 +63,30 @@ export class GamepadService {
         })
     }
 
+    /**
+     * The keyboard, the gamepads the webview sees, the players' gamepads it does not see yet (shown as seen when the
+     * system sees them, "[disconnected]" otherwise), then the ones only the system sees, disabled until a button press
+     */
     GetGamepads(): GamepadReference[] {
-        return this.gamepads
+        const webIds = this.webGamepadIds()
+        const playerIds = this.userConfigService.players
+            .flatMap(player => player.gamepadId === undefined || player.gamepadId === Player.KEYBOARD_ID || webIds.includes(player.gamepadId) ? [] : [player.gamepadId])
+            .filter((id, index, ids) => ids.indexOf(id) === index)
+        const knownIds = [...webIds, ...playerIds]
+        const unseenIds = this.nativeGamepadService.GetGamepads()
+            .flatMap(gamepad => NativeGamepadService.ToWebGamepadId(gamepad) ?? [])
+            .filter((id, index, ids) => ids.indexOf(id) === index && !knownIds.some(knownId => NativeGamepadService.HaveSameDevice(knownId, id)))
+
+        return [
+            { id: Player.KEYBOARD_ID, label: Player.KEYBOARD_ID, isDisabled: false },
+            ...webIds.map(id => ({ id, label: GamepadService.GetDisplayName(id), isDisabled: false })),
+            ...playerIds.map(id => ({
+                id,
+                label: this.nativeGamepadService.IsPlugged(id) === true ? GamepadService.GetDisplayName(id) : `[disconnected] ${GamepadService.GetDisplayName(id)}`,
+                isDisabled: false,
+            })),
+            ...unseenIds.map(id => ({ id, label: `${GamepadService.GetDisplayName(id)} (press a button)`, isDisabled: true })),
+        ]
     }
 
     GetStatus(gamepadId: string): GamepadStatus {
@@ -84,8 +105,22 @@ export class GamepadService {
         if (index === -1) return null
         return players[index].name ?? `Player ${index + 1}`
     }
+
+    //#region Statics
+    // The device name, without what the browser adds: "USB Gamepad (STANDARD GAMEPAD Vendor: 0079 Product: 0011)" gives "USB Gamepad"
+    static GetDisplayName(gamepadId: string): string {
+        const name = gamepadId
+            .replace(/\s*\([^()]*(?:STANDARD GAMEPAD|Vendor: [0-9a-f]{1,4} Product: [0-9a-f]{1,4})[^()]*\)$/i, "")
+            .replace(/^[0-9a-f]{1,4}-[0-9a-f]{1,4}-/i, "")
+            .trim()
+        return name === "" ? gamepadId : name
+    }
+    //#endregion
 }
 
 export type GamepadReference = {
     id: string
+    label: string
+    // A gamepad only the system sees, that no player has: it can be chosen once the webview sees it
+    isDisabled: boolean
 }

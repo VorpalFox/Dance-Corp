@@ -19,6 +19,10 @@ Bugs found but not fixed yet, and deprecations to migrate. Remove an entry once 
   Possible fix: store the musics in IndexedDB (e.g. `idb-keyval`), only `PersistMusic()`, `RemoveMusic()`, `SaveRegistry()` and the startup read change. First measure the cache size (`JSON.stringify(localStorage).length` in the console).
   Test: `tests/unit/services/local-storage/music.cache.service.spec.ts` covers the cache behavior, to keep through the migration.
 
+- **Desktop: an XInput gamepad (Xbox and compatibles) is not linked to the system list**
+  `GamepadService` links the system gamepads to the webview ids by vendor and product ids. WebView2 writes no ids in an XInput id (`Xbox 360 Controller (XInput STANDARD GAMEPAD)`), so a player's XInput gamepad shows "[disconnected]" until a button press even when plugged in, and its disabled "press a button" entry stays once the webview sees it.
+  Possible fix: ask Tauri for the XInput slots (gilrs gives no link to them), or hide the system entries of Microsoft vendor id `045e` once the webview sees an XInput gamepad.
+
 ## Maintenance
 
 - **`npm audit`**: 6 vulnerabilities (5 high, 1 moderate), accepted for now. Do not run `npm audit fix --force`: it downgrades `firebase` to 9.14.0 and `@angular/build` to 22.1.9.

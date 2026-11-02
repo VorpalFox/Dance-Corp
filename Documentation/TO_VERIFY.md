@@ -590,3 +590,21 @@ Tested: `cargo check`, lint, build, unit tests with the Tauri IPC mocked. Not ru
   - Plug it while the app runs: the "plugged in, press one of its buttons" toast shows, then "connected" after a press
   - An XInput gamepad (Xbox): no vendor in its id, the status stays "press a button" as in the browser
   - The inputs in game are not slowed down by the watch thread
+
+## Commit: Gamepad lists: web names, system gamepads before a button press, OnPush refreshes
+Link: not known yet (the commit holds its own entry)
+
+Tested: lint, build and unit tests. Not run in the desktop app, no real gamepad.
+
+- gamepad.service.ts: the list holds the webview gamepads by their short name, the players' gamepads not seen yet ("[disconnected]" unless the system sees them), and the system-only gamepads, disabled with "press a button"
+- native-gamepad.service.ts: the system list is a signal, a system gamepad is matched to webview ids by vendor and product
+- pad-test.page.*, player-selection.page.html: options tracked by id and label so that ion-select refreshes its text; key mapping refreshed right after a bind; "Not Set" no longer shown for button 0
+- player-selection.page.*: player 0 shows the logged user from the signal
+- browse.page.ts, gamepad.service.ts, pad-test.page.ts: toasts and messages show the short gamepad name
+
+→ To verify:
+  - Options, key mapping: the LEFT arrow bound to button 0 shows "0", and a new binding shows at once, gamepad and keyboard
+  - Desktop, gamepad given to no player: listed greyed "Retro Controller (press a button)"; a button press turns it into "USB Gamepad", selectable
+  - Desktop, gamepad given to a player, app restarted without a press: the selects show "USB Gamepad" directly
+  - Gamepad given to a player, unplugged (or in the browser before a press): "[disconnected] USB Gamepad", the binding kept; a press removes "[disconnected]" in the select at once
+  - Player selection, logged in: player 0 shows the user name at once, not "Anonymous"

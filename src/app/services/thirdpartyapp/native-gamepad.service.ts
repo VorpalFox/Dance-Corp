@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core'
+import { Injectable, signal } from '@angular/core'
 import { Subject } from 'rxjs'
 import { invoke } from '@tauri-apps/api/core'
 import isTauri from 'src/app/shared/utils/tauri'
@@ -20,7 +20,7 @@ export type NativeGamepad = {
 @Injectable({ providedIn: 'root' })
 export class NativeGamepadService {
 
-    private gamepads: NativeGamepad[] = []
+    private gamepads = signal<NativeGamepad[]>([])
     private isAvailable = false
 
     /** A gamepad plugged in while the app runs */
@@ -31,15 +31,15 @@ export class NativeGamepadService {
 
         try {
             await listen<NativeGamepad>("native-gamepad-connected", event => {
-                this.gamepads = [...this.gamepads.filter(gamepad => gamepad.id !== event.payload.id), event.payload]
+                this.gamepads.update(gamepads => [...gamepads.filter(gamepad => gamepad.id !== event.payload.id), event.payload])
                 this.connected.next(event.payload)
             })
             await listen<number>("native-gamepad-disconnected", event => {
-                this.gamepads = this.gamepads.filter(gamepad => gamepad.id !== event.payload)
+                this.gamepads.update(gamepads => gamepads.filter(gamepad => gamepad.id !== event.payload))
             })
-            this.gamepads = await invoke<NativeGamepad[]>("list_gamepads")
+            this.gamepads.set(await invoke<NativeGamepad[]>("list_gamepads"))
             this.isAvailable = true
-            console.log("Native gamepads:", this.gamepads)
+            console.log("Native gamepads:", this.gamepads())
         } catch (e) {
             console.warn("Native gamepad watch failed", e)
         }
@@ -50,7 +50,11 @@ export class NativeGamepadService {
         if (!this.isAvailable) return null
         const device = NativeGamepadService.ParseDeviceIds(webGamepadId)
         if (device === null) return null
-        return this.gamepads.some(gamepad => NativeGamepadService.IsSameDevice(gamepad, device))
+        return this.gamepads().some(gamepad => NativeGamepadService.IsSameDevice(gamepad, device))
+    }
+
+    GetGamepads(): NativeGamepad[] {
+        return this.gamepads()
     }
 
     //#region Statics
@@ -69,6 +73,23 @@ export class NativeGamepadService {
             ?? /^([0-9a-f]{1,4})-([0-9a-f]{1,4})-/i.exec(webGamepadId)
         if (match === null) return null
         return { vendorId: parseInt(match[1], 16), productId: parseInt(match[2], 16) }
+    }
+
+    /** Whether these two webview ids are the same device model, false when one cannot be told */
+    static HaveSameDevice(webGamepadIdA: string, webGamepadIdB: string): boolean {
+        const deviceA = NativeGamepadService.ParseDeviceIds(webGamepadIdA)
+        const deviceB = NativeGamepadService.ParseDeviceIds(webGamepadIdB)
+        return deviceA !== null && deviceB !== null && deviceA.vendorId === deviceB.vendorId && deviceA.productId === deviceB.productId
+    }
+
+    /**
+     * A webview-like id for a gamepad the webview has not seen yet, written as Chromium does so that it parses back:
+     * "Retro Controller (Vendor: 0079 Product: 0011)". Null without vendor and product ids.
+     */
+    static ToWebGamepadId(gamepad: NativeGamepad): string | null {
+        if (gamepad.vendorId === null || gamepad.productId === null) return null
+        const Hex = (value: number) => value.toString(16).padStart(4, "0")
+        return `${gamepad.name} (Vendor: ${Hex(gamepad.vendorId)} Product: ${Hex(gamepad.productId)})`
     }
 
     private static IsSameDevice(gamepad: NativeGamepad, device: { vendorId: number, productId: number }): boolean {

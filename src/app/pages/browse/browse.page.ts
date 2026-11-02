@@ -114,12 +114,14 @@ export class BrowsePage implements OnInit, OnDestroy {
     const players = this.userConfigService.players
     players.forEach((player, index) => {
       this.dancepad.push(CreateDancePad(player))
+      if (player.gamepadId === undefined) return
       const name = player.name ?? `Player ${index + 1}`
-      const status = player.gamepadId === undefined ? GamepadStatus.Active : this.gamepadService.GetStatus(player.gamepadId)
+      const gamepadName = GamepadService.GetDisplayName(player.gamepadId)
+      const status = this.gamepadService.GetStatus(player.gamepadId)
       if (status === GamepadStatus.Plugged || status === GamepadStatus.Unknown)
-        AppComponent.PresentOkToast(`${name}: press a button of ${player.gamepadId} to activate it`)
+        AppComponent.PresentOkToast(`${name}: press a button of ${gamepadName} to activate it`)
       else if (status === GamepadStatus.Unplugged)
-        AppComponent.PresentWarningToast(`${name}: ${player.gamepadId} is not plugged in`)
+        AppComponent.PresentWarningToast(`${name}: ${gamepadName} is not plugged in`)
     })
   }
 

@@ -9,6 +9,7 @@ import { HeaderComponent } from "src/app/shared/component/header/header.componen
 import { Player } from 'src/app/game/game-model/player'
 import { RouterModule } from '@angular/router'
 import { UserConfigService } from 'src/app/services/userconfig.service'
+import { UserFirestoreService } from 'src/app/services/firestore/user.firestore.service'
 import { addCircle } from 'ionicons/icons'
 import { addIcons } from 'ionicons'
 
@@ -23,6 +24,10 @@ export class PlayerSelectionPage {
   userConfigService = inject(UserConfigService)
   gamepadService = inject(GamepadService)
   private announcerService = inject(AnnouncerService)
+  private userFirestoreService = inject(UserFirestoreService)
+
+  // Player 0 is the logged user: read from the signal, the player is updated outside of the page change detection
+  readonly loggedUser = this.userFirestoreService.userData
 
   userList: { id: string | null, name: string }[] = []
 

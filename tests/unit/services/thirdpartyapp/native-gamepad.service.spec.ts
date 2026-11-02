@@ -40,6 +40,18 @@ describe("NativeGamepadService", () => {
     })
   })
 
+  it("writes an id that parses back, only with vendor and product ids", () => {
+    const webId = NativeGamepadService.ToWebGamepadId({ id: 0, name: "Retro Controller", vendorId: 121, productId: 17 })
+    expect(webId).toBe("Retro Controller (Vendor: 0079 Product: 0011)")
+    expect(NativeGamepadService.HaveSameDevice(webId!, PAD_WEB_ID)).toBe(true)
+    expect(NativeGamepadService.ToWebGamepadId({ ...PAD, vendorId: null })).toBeNull()
+  })
+
+  it("tells two ids of the same device apart from unknown ones", () => {
+    expect(NativeGamepadService.HaveSameDevice("Other (Vendor: 1234 Product: 5678)", PAD_WEB_ID)).toBe(false)
+    expect(NativeGamepadService.HaveSameDevice("Xbox 360 Controller (XInput STANDARD GAMEPAD)", "Xbox 360 Controller (XInput STANDARD GAMEPAD)")).toBe(false)
+  })
+
   it("knows nothing before its init", () => {
     expect(new NativeGamepadService().IsPlugged(PAD_WEB_ID)).toBeNull()
   })
