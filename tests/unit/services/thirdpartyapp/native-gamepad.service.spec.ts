@@ -8,11 +8,13 @@ const PAD: NativeGamepad = { id: 3, name: "Dance pad", vendorId: 0x0079, product
 const PAD_WEB_ID = "USB Gamepad (Vendor: 0079 Product: 0011)"
 
 describe("NativeGamepadService", () => {
-  // isTauri is read when the module loads: the Tauri mock goes first, then the service is imported
+  // isTauri is read when the module loads: the Tauri mock goes first, then the service is imported.
+  // The test files share their modules (no isolation): another file may have loaded it already, hence the reset
   let NativeGamepadService: typeof import("src/app/services/thirdpartyapp/native-gamepad.service").NativeGamepadService
   let plugged: NativeGamepad[]
 
   beforeAll(async () => {
+    vi.resetModules()
     mockIPC(cmd => cmd === "list_gamepads" ? plugged : undefined, { shouldMockEvents: true })
     NativeGamepadService = (await import("src/app/services/thirdpartyapp/native-gamepad.service")).NativeGamepadService
   })
