@@ -51,10 +51,10 @@ describe("NoteEvaluator", () => {
     expect(evaluator.maxBpm).toBeCloseTo(240 * Math.pow(1 / 3, 0.3))
   })
 
-  // Known issue: the time after the last BPM change is negative, and the weighted max BPM is NaN
-  it.fails("gives a number for a chart that ends before the last BPM change", () => {
+  it("ignores the BPM changes after the end of the chart", () => {
     const evaluator = CreateEvaluator([new BpmChange(0, 120), new BpmChange(8, 240)], ["1000", "0000", "0000", "0000"])
     expect(evaluator.EvaluateSpeed()).not.toBeNaN()
+    expect(evaluator.avgBpm).toBe(120)
   })
 
   it("counts the technical patterns", () => {
@@ -85,10 +85,9 @@ describe("NoteEvaluator", () => {
     expect(irregular.EvaluateBurst()).toBeGreaterThan(regular.EvaluateBurst())
   })
 
-  // Known issue: with no empty row between the steps, the mean gap is 0 and the burst is NaN
-  it.fails("gives a number for a chart with a step on every row", () => {
+  it("gives no burst to a chart with a step on every row", () => {
     const evaluator = CreateEvaluator(BPM_120, ["1000", "0100", "0010", "0001"])
-    expect(evaluator.EvaluateBurst()).not.toBeNaN()
+    expect(evaluator.EvaluateBurst()).toBe(0)
   })
 
   it("gives a level from the criterias", () => {

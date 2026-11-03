@@ -215,6 +215,14 @@ export class NoteDataDto {
     instance.stepChart = Array.isArray(stepChart)
       ? stepChart.map((n: Record<string, unknown>) => Measures.FromJSON(n))
       : []
+    // JSON.stringify writes the date as an ISO string
+    const creationDate = obj["creationDate"]
+    if (typeof creationDate === "string")
+      instance.creationDate = new Date(creationDate)
+    const difficultyCriterias = obj["difficultyCriterias"]
+    instance.difficultyCriterias = typeof difficultyCriterias === "object" && difficultyCriterias !== null
+      ? Object.assign(new DifficultyCriteria(), difficultyCriterias)
+      : undefined
     return instance
   }
   //#endregion

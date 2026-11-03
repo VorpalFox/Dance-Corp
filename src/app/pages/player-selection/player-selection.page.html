@@ -24,14 +24,15 @@
                   <ion-select-option [value]="null"> Anonymous </ion-select-option>
                 </ion-select>
               }@else {
-                <ion-input disabled label="Dancer" labelPlacement="stacked" [value]="player.userId ? player.name : 'Anonymous'"> </ion-input>
+                <ion-input disabled label="Dancer" labelPlacement="stacked" [value]="loggedUser()?.name ?? 'Anonymous'"> </ion-input>
               }
               </ion-item>
               <ion-item lines="none">
-                <ion-select label="Gamepad" labelPlacement="stacked" placeholder="Select a gamepad" [value]="player.gamepad?.id" (ionChange)="UpdateGamepad(index, $event.detail.value)">
-                  @for (gamepad of this.gamepadService.GetGamepads(); track gamepad) {
-                    <ion-select-option [value]="gamepad.id">
-                      {{ gamepad.id }}
+                <ion-select label="Gamepad" labelPlacement="stacked" placeholder="Select a gamepad" [value]="player.gamepadId" (ionChange)="UpdateGamepad(index, $event.detail.value)">
+                  <!-- Tracked by label too: ion-select only refreshes its shown text when an option is added, not when its text changes -->
+                  @for (gamepad of this.gamepadService.GetGamepads(); track gamepad.id + gamepad.label) {
+                    <ion-select-option [value]="gamepad.id" [disabled]="gamepad.isDisabled">
+                      {{ gamepad.label }}
                     </ion-select-option>
                   }
                 </ion-select>

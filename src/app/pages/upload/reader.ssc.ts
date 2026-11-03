@@ -44,6 +44,8 @@ export class SccReader {
       }
     }
     if (tsvLines.length > 0) {
+      // Evaluated meters: sort again, like MusicDto does with the meters of the file
+      musicData.noteData.sort((a, b) => (a.meter || 0) - (b.meter || 0))
       console.log("Analysis: title | targetScore | totalSteps | doubleSteps | chainedDoubleSteps | avgBpm | maxBpm | stepWithHoldCount | sameArrowRepeatCount | offBeatStepCount | tripleStepCount | mineCount | burstVariation\n" + tsvLines.join('\n'))
     }
 
@@ -114,7 +116,7 @@ export class SccReader {
         const currentNoteData: Record<string, string> = {}
         noteDataIndex++
         currentNoteData['stepstype'] = lines[0]
-        currentNoteData['credits'] = lines[1]
+        currentNoteData['credit'] = lines[1]
         currentNoteData['difficulty'] = lines[2]
         currentNoteData['meter'] = lines[3]
         currentNoteData['notes'] = SccReader.ConvertNotes(lines[5])

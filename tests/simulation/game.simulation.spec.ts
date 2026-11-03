@@ -7,6 +7,7 @@ import { ArrowType } from "src/app/game/constants/arrow-type.enum"
 import { CONFIG } from "src/app/game/constants/game-config"
 import { GameRound } from "src/app/game/game-model/gameRound"
 import { Precision } from "src/app/game/constants/precision.enum"
+import { UserNoteDto } from "src/app/pages/user-profile/user.dto"
 
 // 4ths, 8ths and jumps on every direction
 const MIXED_CHART = CreateChart(
@@ -56,8 +57,8 @@ describe("Game simulation", () => {
       expect(userCache.UpdateUserStatsFromRound).toHaveBeenCalledTimes(1)
     })
 
-    // Known issue: the score adds up scorePerArrow, and the rounding leaves it just below CONFIG.SCORE.MAX
-    it.fails("plays the special crowd sound on a perfect game", async () => {
+    // The score adds up scorePerArrow: the rounding leaves it just below CONFIG.SCORE.MAX
+    it("plays the special crowd sound on a perfect game", async () => {
       const music = CreateMusic({ bpms: "0=120" })
       const { announcer } = await Simulate(music, MIXED_CHART, PerfectInputs(music, MIXED_CHART))
 
@@ -108,8 +109,8 @@ describe("Game simulation", () => {
       expect(round.isFinished).toBe(true)
     })
 
-    // Known issue: a hold head also scores like a tap, although the taps share the score without it
-    it.fails("gives the max score with holds", async () => {
+    // A hold head scores like a tap, then its hold beats
+    it("gives the max score with holds", async () => {
       const music = CreateMusic({ bpms: "0=120" })
       const chart = CreateChart(["2000", "0000", "0100", "0000"], ["3000", "0000", "0000", "0000"], ["1000", "0000", "0000", "0000"])
       const { round } = await Simulate(music, chart, PerfectInputs(music, chart))
@@ -146,9 +147,8 @@ describe("Game simulation", () => {
       expect(new Set(Precisions(round.arrowManager.arrowMap))).toEqual(new Set([Precision.Perfect]))
     })
 
-    // Known issue: a press judges every arrow of its direction in the tolerance window,
-    // so with arrows 100 ms apart, one press also takes the next arrow early
-    it.fails("judges each press on its own arrow, on 16ths on the same arrow", async () => {
+    // Arrows 100 ms apart, inside the tolerance window: one press must not also take the next arrow
+    it("judges each press on its own arrow, on 16ths on the same arrow", async () => {
       const music = CreateMusic({ bpms: "0=150" })
       const chart = CreateChart(Array.from({ length: 16 }, (_, i) => i % 4 === 0 ? "1000" : "0000"), Array.from({ length: 16 }, () => "1000"), ["1000", "0000", "0000", "0000"])
       const { round } = await Simulate(music, chart, PerfectInputs(music, chart))
@@ -235,6 +235,21 @@ describe("Game simulation", () => {
   })
 
   describe("end of the game", () => {
+    // The high score is saved rounded: a score of 933333.33 does not beat a high score of 933333
+    it("compares the rounded score with the high score", async () => {
+      const music = CreateMusic({ bpms: "0=60" })
+      const chart = CreateChart(["0000", "1000", "0000", "0100"], ["0010", "0000", "0000", "0000"])
+      const inputs = PerfectInputs(music, chart)
+      inputs[2].time += 0.05
+      const game = CreateGame(music, [chart])
+      const round = game.manager.gameRounds[0]
+      game.manager.mainUserStats = Object.assign(new UserNoteDto(chart.chartName), { highScore: 933333 })
+      await Play(game, inputs)
+
+      expect(round.score).toBeCloseTo(CONFIG.SCORE.MAX * (2 + CONFIG.SCORE.GREAT_RATIO) / 3, 3)
+      expect(game.announcer.PlayAnnouncer).not.toHaveBeenCalledWith("high_score")
+    })
+
     it("follows the background changes, up to the last one", async () => {
       const music = CreateMusic({ bpms: "0=120", bgchanges: "0=a.png,4=b.png,8=c.png" })
       const { manager } = await Simulate(music, MIXED_CHART, PerfectInputs(music, MIXED_CHART))
@@ -251,12 +266,10 @@ describe("Game simulation", () => {
     })
   })
 
-  // Known issue: GameRound.CheckArrowPress does not return after the mine checks,
-  // so a mine is then judged like a tap: Missed when avoided, Perfect when pressed
   describe("mines", () => {
     const MINE_CHART = CreateChart(["1000", "0500", "0010", "0000"], ["1000", "0000", "0000", "0000"])
 
-    it.fails("lets the mines pass when they are avoided", async () => {
+    it("lets the mines pass when they are avoided", async () => {
       const music = CreateMusic({ bpms: "0=120" })
       const { round } = await Simulate(music, MINE_CHART, PerfectInputs(music, MINE_CHART))
 
@@ -266,7 +279,7 @@ describe("Game simulation", () => {
       expect(round.comboCount).toBe(3)
     })
 
-    it.fails("explodes a mine pressed on its beat, and breaks the combo", async () => {
+    it("explodes a mine pressed on its beat, and breaks the combo", async () => {
       const music = CreateMusic({ bpms: "0=120" })
       const inputs = [...PerfectInputs(music, MINE_CHART), { time: TimeOfBeat(music, 1), direction: ArrowDirection.Down }]
       const { round } = await Simulate(music, MINE_CHART, inputs)

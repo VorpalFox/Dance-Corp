@@ -12,7 +12,7 @@ describe("Player", () => {
   it("reloads its user, its gamepad and its key bindings", () => {
     const player = new Player()
     player.userId = "uid"
-    player.gamepad = { index: 1, id: "pad" }
+    player.gamepadId = "pad"
     player.keyBindingGamepad.set(7, ArrowDirection.Start)
     player.keyBindingKeyboard.set("Enter", ArrowDirection.Start)
 
@@ -20,7 +20,7 @@ describe("Player", () => {
 
     expect(reloaded).toBeInstanceOf(Player)
     expect(reloaded.userId).toBe("uid")
-    expect(reloaded.gamepad).toEqual({ index: 1, id: "pad" })
+    expect(reloaded.gamepadId).toBe("pad")
     expect(reloaded.keyBindingGamepad).toEqual(player.keyBindingGamepad)
     expect(reloaded.keyBindingKeyboard).toEqual(player.keyBindingKeyboard)
   })
@@ -32,7 +32,12 @@ describe("Player", () => {
 
   it("reloads a keyboard player", () => {
     const player = new Player()
-    player.gamepad = { index: -1, id: "keyboard" }
-    expect(Reload(player).gamepad).toEqual({ index: -1, id: "keyboard" })
+    player.gamepadId = Player.KEYBOARD_ID
+    expect(Reload(player).gamepadId).toBe(Player.KEYBOARD_ID)
+  })
+
+  it("reads the gamepad id of a player saved with its gamepad index", () => {
+    const saved = { ...JSON.parse(JSON.stringify(new Player())), gamepad: { index: 2, id: "pad" } }
+    expect(Player.FromJSON(saved).gamepadId).toBe("pad")
   })
 })

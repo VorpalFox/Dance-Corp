@@ -68,8 +68,7 @@ describe("MusicDto", () => {
       expect(music.noteData[0].stepChart[0].steps[0][0]).toBe(1)
     })
 
-    // Known issue: FromJSON does not rebuild the creation date nor the difficulty criterias
-    it.fails("keeps the creation date a Date and the criterias a DifficultyCriteria", () => {
+    it("keeps the creation date a Date and the criterias a DifficultyCriteria", () => {
       const chart = CreateMusic().DeepClone().noteData[0]
       expect(chart.creationDate).toBeInstanceOf(Date)
       expect(chart.difficultyCriterias).toBeInstanceOf(DifficultyCriteria)

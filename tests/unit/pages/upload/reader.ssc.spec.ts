@@ -2,7 +2,7 @@ import { SanitizeSscInput, SccReader, SccWriter } from "src/app/pages/upload/rea
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { DanceType } from "src/app/game/constants/dance-type.enum"
-import { MusicDto } from "src/app/game/game-model/music.dto"
+import { MusicDto, NoteDataDto } from "src/app/game/game-model/music.dto"
 import { NoteDifficulty } from "src/app/game/constants/note-difficulty.enum"
 import { ReadChart } from "../../fixtures/fixtures"
 
@@ -43,12 +43,19 @@ describe("SccReader", () => {
       expect(music.additionalFields).toEqual({ version: "0.83" })
     })
 
-    it("reads every chart, sorted by meter", () => {
-      expect(music.noteData.map(n => n.difficulty)).toEqual([NoteDifficulty.Basic, NoteDifficulty.Expert])
+    // The meters are evaluated, so the order of the charts may change: find them by difficulty
+    function Chart(difficulty: NoteDifficulty): NoteDataDto {
+      return music.noteData.find(chart => chart.difficulty === difficulty)!
+    }
+
+    it("reads every chart, sorted by their final meter", () => {
+      expect(music.noteData.map(n => n.difficulty).sort()).toEqual([NoteDifficulty.Basic, NoteDifficulty.Expert].sort())
+      const meters = music.noteData.map(n => n.meter)
+      expect(meters).toEqual([...meters].sort((a, b) => a - b))
     })
 
     it("reads the chart tags", () => {
-      const chart = music.noteData[1]
+      const chart = Chart(NoteDifficulty.Expert)
       expect(chart.chartName).toBe("My Chart")
       expect(chart.stepsType).toBe(DanceType.DanceSingle)
       expect(chart.description).toBe("Test")
@@ -56,11 +63,11 @@ describe("SccReader", () => {
     })
 
     it("names a chart without a name from its difficulty, meter and type", () => {
-      expect(music.noteData[0].chartName).toMatch(/^Easy_\d+_S_\d{4}-\d{2}-\d{2}$/)
+      expect(Chart(NoteDifficulty.Basic).chartName).toMatch(/^Easy_\d+_S_\d{4}-\d{2}-\d{2}$/)
     })
 
     it("reads the notes measure by measure, mines converted", () => {
-      expect(music.noteData[1].stepChart.map(m => m.steps)).toEqual([
+      expect(Chart(NoteDifficulty.Expert).stepChart.map(m => m.steps)).toEqual([
         [[1, 0, 0, 0], [0, 0, 0, 0], [0, 1, 1, 0], [0, 0, 0, 1]],
         [[2, 0, 0, 0], [0, 0, 0, 0], [3, 0, 0, 0], [5, 0, 0, 0]],
       ])
@@ -102,9 +109,21 @@ describe("SccReader", () => {
       expect(chart.stepChart[0].steps).toEqual([[1, 0, 0, 0], [0, 5, 0, 0], [0, 0, 1, 0], [0, 0, 0, 7]])
     })
 
-    // Known issue: TokenizeSM stores the credit as "credits", NoteDataDto reads "credit"
-    it.fails("reads the chart credit", () => {
+    it("reads the chart credit", () => {
       expect(music.noteData[0].credit).toBe("Fx")
+    })
+  })
+
+  describe("ParseFile (evaluated meters)", () => {
+    it("sorts the charts by their evaluated meter", () => {
+      const dense = Array(4).fill("1100\n1100\n1100\n1100").join("\n,\n")
+      const content = `#TITLE:A;\n#ARTIST:B;\n#BPMS:0=120;\n`
+        + `#NOTEDATA:;\n#CHARTNAME:dense;\n#STEPSTYPE:dance-single;\n#METER:1;\n#NOTES:\n${dense}\n;\n`
+        + `#NOTEDATA:;\n#CHARTNAME:light;\n#STEPSTYPE:dance-single;\n#METER:10;\n#NOTES:\n1000\n0000\n0000\n0000\n;\n`
+      const music = SccReader.ParseFile("song.ssc", content)
+
+      expect(music.noteData.map(chart => chart.chartName)).toEqual(["light", "dense"])
+      expect(music.noteData[0].meter).toBeLessThan(music.noteData[1].meter)
     })
   })
 
@@ -189,8 +208,7 @@ describe("SccWriter", () => {
     expect(Normalize(reread)).toEqual(Normalize(music))
   })
 
-  // Known issue: DeepClone does not rebuild the DifficultyCriteria instances, which are then written "[object Object]"
-  it.fails("writes the difficulty criterias of an edited copy (DeepClone)", () => {
+  it("writes the difficulty criterias of an edited copy (DeepClone)", () => {
     const music = SccReader.ParseFile("two-charts.ssc", ReadChart("two-charts.ssc"))
     const content = SccWriter.WriteSscFile(music.DeepClone())
 

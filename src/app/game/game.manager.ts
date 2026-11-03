@@ -121,12 +121,12 @@ export class GameManager {
         this.isGameOver = true
 
         // At least one player finished with the max score
-        if (this.gameRounds.some(gr => gr.isFinished && gr.score >= CONFIG.SCORE.MAX)) {
+        if (this.gameRounds.some(gr => gr.isFinished && Math.round(gr.score) >= CONFIG.SCORE.MAX)) {
             this.announcerService.PlayAnnouncer("victory")
             this.announcerService.PlayCrowdOneShot("special")
         }
         // At least one player finished and has a score of A
-        else if (this.gameRounds.some(gr => gr.isFinished && gr.score >= CONFIG.SCORE.MAX * CONFIG.SCORE.APPLAUSE_HEAVY_RATIO)) {
+        else if (this.gameRounds.some(gr => gr.isFinished && Math.round(gr.score) >= CONFIG.SCORE.MAX * CONFIG.SCORE.APPLAUSE_HEAVY_RATIO)) {
             this.announcerService.PlayAnnouncer("victory")
             this.announcerService.PlayCrowdOneShot("applause_heavy")
         }
@@ -141,7 +141,7 @@ export class GameManager {
             this.announcerService.PlayCrowdOneShot("boo")
         }
         // Main Player get new highscore
-        if (this.gameRounds[0].isFinished && this.mainUserStats && this.gameRounds[0].score > this.mainUserStats.highScore) {
+        if (this.gameRounds[0].isFinished && this.mainUserStats && Math.round(this.gameRounds[0].score) > this.mainUserStats.highScore) {
             this.announcerService.PlayAnnouncer("high_score")
         }
 

@@ -135,20 +135,17 @@ export class NoteEvaluator {
     const MAX_BPM_WEIGHT = 0.2
 
     const bpmDurations: Map<number, number> = new Map()
+    const totalBeats = this.stepChart.length * 4
 
-    for (let i = 0; i < this.bpms.length - 1; i++) {
+    // Only the time inside the chart counts: the BPM changes after its end are ignored
+    for (let i = 0; i < this.bpms.length; i++) {
       const bpm = this.bpms[i]
-      const next = this.bpms[i + 1]
-      const duration = (60 / bpm.value) * (next.time - bpm.time)
+      const end = Math.min(this.bpms.at(i + 1)?.time ?? totalBeats, totalBeats)
+      if (end <= bpm.time) continue
+      const duration = (60 / bpm.value) * (end - bpm.time)
 
       bpmDurations.set(bpm.value, (bpmDurations.get(bpm.value) ?? 0) + duration)
     }
-
-    const last = this.bpms[this.bpms.length - 1]
-    const totalBeats = this.stepChart.length * 4
-    const lastDuration = (60 / last.value) * (totalBeats - last.time)
-
-    bpmDurations.set(last.value, (bpmDurations.get(last.value) ?? 0) + lastDuration)
 
     let weightedSum = 0
     let totalDuration = 0
@@ -271,7 +268,8 @@ export class NoteEvaluator {
     const mean = intervals.reduce((a, b) => a + b, 0) / intervals.length
     const variance = intervals.map(x => (x - mean) ** 2).reduce((a, b) => a + b, 0) / intervals.length
     const std = Math.sqrt(variance)
-    const heterogeneityScore = std / mean
+    // No gap at all (a step on every row) is as regular as it gets
+    const heterogeneityScore = mean > 0 ? std / mean : 0
 
     this.burstVariation = heterogeneityScore
 

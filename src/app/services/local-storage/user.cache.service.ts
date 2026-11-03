@@ -123,7 +123,7 @@ export class UserCacheService {
         note.passed = note.passed || gameRound.isFinished
         note.timesPlayed += 1
         note.highScore = Math.max(note.highScore, Math.round(gameRound.score))
-        note.highScoreGamepad = gameRound.player.gamepad?.id ?? "Unknown gamepad"
+        note.highScoreGamepad = gameRound.player.gamepadId ?? "Unknown gamepad"
 
         // 5. Stop here if session-only
         if (this.isSessionOnly) return

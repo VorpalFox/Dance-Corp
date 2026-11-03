@@ -2,14 +2,14 @@ import { Component, inject } from '@angular/core'
 import { IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonIcon, IonInput, IonItem, IonSelect, IonSelectOption } from '@ionic/angular'
 
 import { AnnouncerService } from 'src/app/services/gameplay/announcer.service'
-import { AppComponent } from 'src/app/app.component'
 
 import { FormsModule } from '@angular/forms'
-import { GamepadService } from 'src/app/services/gameplay/gamepad.service'
+import { GamepadService, GamepadStatus } from 'src/app/services/gameplay/gamepad.service'
 import { HeaderComponent } from "src/app/shared/component/header/header.component"
 import { Player } from 'src/app/game/game-model/player'
 import { RouterModule } from '@angular/router'
 import { UserConfigService } from 'src/app/services/userconfig.service'
+import { UserFirestoreService } from 'src/app/services/firestore/user.firestore.service'
 import { addCircle } from 'ionicons/icons'
 import { addIcons } from 'ionicons'
 
@@ -24,6 +24,10 @@ export class PlayerSelectionPage {
   userConfigService = inject(UserConfigService)
   gamepadService = inject(GamepadService)
   private announcerService = inject(AnnouncerService)
+  private userFirestoreService = inject(UserFirestoreService)
+
+  // Player 0 is the logged user: read from the signal, the player is updated outside of the page change detection
+  readonly loggedUser = this.userFirestoreService.userData
 
   userList: { id: string | null, name: string }[] = []
 
@@ -46,16 +50,7 @@ export class PlayerSelectionPage {
   }
 
   UpdateGamepad(playerIndex: number, gamepadId: string): void {
-    if (gamepadId === "Keyboard") {
-      this.userConfigService.UpdatePlayer('gamepad', playerIndex, { index: -1, id: "Keyboard" })
-
-    } else {
-      const gamepad = navigator.getGamepads().filter(g => g !== null).find(g => g.id === gamepadId)
-      if (gamepad)
-        this.userConfigService.UpdatePlayer("gamepad", playerIndex, { index: gamepad.index, id: gamepad.id })
-      else
-        AppComponent.PresentWarningToast(`Gamepad not found. Please ensure it is connected.`)
-    }
+    this.userConfigService.UpdatePlayer('gamepadId', playerIndex, gamepadId)
   }
 
   UpdateUser(playerIndex: number, userId: string | null) {
@@ -68,25 +63,28 @@ export class PlayerSelectionPage {
 
   GetPlayerStatus(): string {
     const players = this.userConfigService.players
+    const names = players.map((player, index) => player.name ?? `Player ${index + 1}`)
+    const statuses = players.map(player => player.gamepadId === undefined ? null : this.gamepadService.GetStatus(player.gamepadId))
+    const missingGamepad = names.filter((_, index) => statuses[index] === null)
+    // Not blocking: the gamepad plays as soon as the webview sees it
+    const unseenGamepad = names.filter((_, index) => statuses[index] === GamepadStatus.Plugged || statuses[index] === GamepadStatus.Unknown)
+    const unpluggedGamepad = names.filter((_, index) => statuses[index] === GamepadStatus.Unplugged)
 
-    if (this.allPlayersReady) {
-      return "✅ All players are ready!"
-    }
-
-    const missingGamepad = players.filter(player => !player.gamepad?.id).map((player, index) => player.name ?? `Player ${index + 1}`)
-    const unrecognizedGamepad = players.filter(player => player.gamepad?.id && player.gamepad.index === null).map((player, index) => player.name ?? `Player ${index + 1}`)
-
-    let statusMessage = ""
+    let statusMessage = this.allPlayersReady ? "✅ All players are ready!\n" : ""
 
     if (missingGamepad.length > 0) {
       statusMessage += `⚠ ${missingGamepad.join(", ")} must have a gamepad.\n`
     }
 
-    if (unrecognizedGamepad.length > 0) {
-      statusMessage += `🔄 ${unrecognizedGamepad.join(", ")} must press a button to activate their gamepad.\n`
+    if (unseenGamepad.length > 0) {
+      statusMessage += `🔄 ${unseenGamepad.join(", ")}: press a button to activate your gamepad.\n`
     }
 
-    return statusMessage || "🔍 Waiting for configuration..."
+    if (unpluggedGamepad.length > 0) {
+      statusMessage += `🔌 ${unpluggedGamepad.join(", ")}: your gamepad is not plugged in.\n`
+    }
+
+    return statusMessage
   }
 
   OnStartClick() {

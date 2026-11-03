@@ -3,6 +3,7 @@ import { IonApp, IonRouterOutlet } from '@ionic/angular'
 
 import { AnnouncerService } from './services/gameplay/announcer.service'
 import { MusicCacheService } from './services/local-storage/music.cache.service'
+import { NativeGamepadService } from './services/thirdpartyapp/native-gamepad.service'
 import { PresenceService } from './services/thirdpartyapp/presence.service'
 import { SoundService } from './services/gameplay/sound.service'
 import { ToastController } from '@ionic/angular'
@@ -17,6 +18,7 @@ import { productionConsole } from './shared/console-output'
 export class AppComponent implements OnInit {
   private toastController = inject(ToastController)
   private presenceService = inject(PresenceService)
+  private nativeGamepadService = inject(NativeGamepadService)
   private musicCacheService = inject(MusicCacheService)
 
   static appInstance: AppComponent
@@ -39,6 +41,7 @@ export class AppComponent implements OnInit {
       })
       .catch(error => AppComponent.PresentErrorToast("Failed to update the music list: " + error))
     void this.presenceService.Init()
+    void this.nativeGamepadService.Init()
   }
 
   //#region Toasts

@@ -1,4 +1,4 @@
-import { ArrowState, IDancePad } from "../game-controller/dancepad.interface"
+import { ArrowState, DancePadInput, IDancePad } from "../game-controller/dancepad.interface"
 
 import { AnnouncerService } from 'src/app/services/gameplay/announcer.service'
 import { Arrow } from "./arrows/arrow"
@@ -6,8 +6,7 @@ import { ArrowDirection } from 'src/app/game/constants/arrow-direction.enum'
 import { ArrowManager } from './arrows/arrowManager'
 import { ArrowType } from "../constants/arrow-type.enum"
 import { CONFIG } from './../constants/game-config'
-import { DancePadGamepad } from "../game-controller/dancepad-gamepad"
-import { DancePadKeyboard } from '../game-controller/dancepad-keyboard'
+import { CreateDancePad } from "../game-controller/dancepad.factory"
 import { NoteDataDto } from "./music.dto"
 import { Precision } from "../constants/precision.enum"
 import { Player } from "./player"
@@ -54,10 +53,7 @@ export class GameRound {
     constructor(notes: NoteDataDto, player: Player, isTrainingMode = false, private announcerService: AnnouncerService) {
         this.player = player
 
-        if (player.gamepad!.index === -1)
-            this.dancepad = new DancePadKeyboard(player.keyBindingKeyboard)
-        else
-            this.dancepad = new DancePadGamepad(player.gamepad!.index!, player.keyBindingGamepad)
+        this.dancepad = CreateDancePad(player)
 
         this.level = notes.meter
         this.arrowManager = new ArrowManager(notes)
@@ -73,7 +69,8 @@ export class GameRound {
     private CalculateScore() {
         const arrowMap = this.arrowManager.arrowMap
         const holdArrows = arrowMap.filter(arrow => arrow.type === ArrowType.Hold)
-        const tapArrows = arrowMap.filter(arrow => arrow.type === ArrowType.Tap)
+        // A hold head is judged like a tap: it scores like one, then its hold beats
+        const tapArrows = arrowMap.filter(arrow => arrow.type === ArrowType.Tap || arrow.type === ArrowType.Hold)
 
         // Calculate total hold percentage for score
         const totalHoldTime = holdArrows.reduce((total, arrow) => total + arrow.holdLength, 0)
@@ -93,8 +90,8 @@ export class GameRound {
         const arrowMap = this.arrowManager.arrowMap
         this.currentBeat = currentBeat
 
-        // Get DancePad state
-        const padstate = this.dancepad.GetRefreshedState()
+        // Get DancePad state, copied: a press is consumed below without changing the exposed state
+        const padstate: DancePadInput = [...this.dancepad.GetRefreshedState()]
 
         if (this.isFinished)
             return
@@ -104,7 +101,11 @@ export class GameRound {
         while (currentArrowCheck < arrowMap.length && arrowMap[currentArrowCheck].beatPosition < currentBeat + tolerance) {
             const arrow = arrowMap[currentArrowCheck]
             if (!arrow.isOut) {
+                const precision = arrow.precision
                 this.CheckArrowPress(arrow, currentBeat, padstate[arrow.direction], tolerance)
+                // One press judges one arrow: the next arrows of its direction see it held
+                if (precision === null && GameRound.IsPressJudgment(arrow.precision) && padstate[arrow.direction] === ArrowState.Press)
+                    padstate[arrow.direction] = ArrowState.Hold
             }
             currentArrowCheck++
         }
@@ -134,7 +135,7 @@ export class GameRound {
                     this.MinePassed(arrow)
                 }
             }
-
+            return
         }
 
         if (arrow.type === ArrowType.Hold && arrow.isPressed) {
@@ -288,4 +289,11 @@ export class GameRound {
         if (this.isFailed) return
         this.isFinished = true
     }
+
+    //#region Statics
+    // Judgments given by a press, as opposed to Missed (time out) and Boom (mine)
+    private static IsPressJudgment(precision: Precision | null): boolean {
+        return precision === Precision.Perfect || precision === Precision.Great || precision === Precision.Good || precision === Precision.Almost
+    }
+    //#endregion
 }

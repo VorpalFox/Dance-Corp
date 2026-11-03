@@ -4,15 +4,22 @@ import { ArrowDirection } from "src/app/game/constants/arrow-direction.enum"
 export type PlayerJSON = {
     name: string | undefined
     userId: string | null
-    gamepad: { index: number | null, id: string } | undefined
+    gamepadId?: string
+    // Before gamepadId: the gamepad with its index of the time
+    gamepad?: { id: string }
     keyBindingGamepad: Record<string, ArrowDirection>
     keyBindingKeyboard: Record<string, ArrowDirection>
 }
 
 export class Player {
+    //#region Constants
+    static readonly KEYBOARD_ID = "Keyboard"
+    //#endregion
+
     name: string | undefined
     userId: string | null = null
-    gamepad: { index: number | null, id: string } | undefined
+    // Id of the gamepad (Gamepad.id), or KEYBOARD_ID
+    gamepadId: string | undefined
     keyBindingGamepad: Map<number, ArrowDirection>
     keyBindingKeyboard: Map<string, ArrowDirection>
 
@@ -25,7 +32,7 @@ export class Player {
         return {
             name: this.name,
             userId: this.userId,
-            gamepad: this.gamepad,
+            gamepadId: this.gamepadId,
             keyBindingGamepad: Object.fromEntries(this.keyBindingGamepad), // Convert Map to object
             keyBindingKeyboard: Object.fromEntries(this.keyBindingKeyboard), // Convert Map to object
         }
@@ -35,7 +42,7 @@ export class Player {
     static FromJSON(json: PlayerJSON): Player {
         const player = new Player()
         player.userId = json.userId
-        player.gamepad = json.gamepad
+        player.gamepadId = json.gamepadId ?? json.gamepad?.id
         player.keyBindingGamepad = new Map<number, ArrowDirection>(Object.entries(json.keyBindingGamepad).map(([k, v]) => [Number(k), v]))
         player.keyBindingKeyboard = new Map<string, ArrowDirection>(Object.entries(json.keyBindingKeyboard))
         return player

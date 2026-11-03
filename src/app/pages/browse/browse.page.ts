@@ -12,8 +12,7 @@ import { Color } from 'src/app/game/constants/color'
 import { DanceType } from 'src/app/game/constants/dance-type.enum'
 import { CONFIG } from 'src/app/game/constants/game-config'
 import { NoteDifficulty } from 'src/app/game/constants/note-difficulty.enum'
-import { DancePadGamepad } from 'src/app/game/game-controller/dancepad-gamepad'
-import { DancePadKeyboard } from 'src/app/game/game-controller/dancepad-keyboard'
+import { CreateDancePad } from 'src/app/game/game-controller/dancepad.factory'
 import { IDancePad } from 'src/app/game/game-controller/dancepad.interface'
 import { MusicPlayerLocalComponent } from "src/app/game/music-player/music-player-local/music-player-local.component"
 import { MusicPlayerSoundcloudComponent } from "src/app/game/music-player/music-player-soundcloud/music-player-soundcloud.component"
@@ -21,7 +20,9 @@ import { MusicPlayerYoutubeComponent } from "src/app/game/music-player/music-pla
 import { AnnouncerService } from 'src/app/services/gameplay/announcer.service'
 import { MusicLocalService } from 'src/app/services/local-storage/local.music.service'
 import { UserCacheService } from 'src/app/services/local-storage/user.cache.service'
+import { GamepadService, GamepadStatus } from 'src/app/services/gameplay/gamepad.service'
 import { UserConfigService } from 'src/app/services/userconfig.service'
+import { AppComponent } from 'src/app/app.component'
 import { HeaderComponent } from "src/app/shared/component/header/header.component"
 import { RadarScoreComponent } from "src/app/shared/component/radar-score/radar-score.component"
 import { MusicCacheService } from '../../services/local-storage/music.cache.service'
@@ -55,6 +56,7 @@ export class BrowsePage implements OnInit, OnDestroy {
   private musicCacheService = inject(MusicCacheService)
   private userFirestoreService = inject(UserFirestoreService)
   private userConfigService = inject(UserConfigService)
+  private gamepadService = inject(GamepadService)
   private userCacheService = inject(UserCacheService)
   private announcerService = inject(AnnouncerService)
   private discordRpcService = inject(PresenceService)
@@ -110,12 +112,17 @@ export class BrowsePage implements OnInit, OnDestroy {
 
   InitPlayerInput() {
     const players = this.userConfigService.players
-    for (const player of players) {
-      if (player.gamepad!.index === -1)
-        this.dancepad.push(new DancePadKeyboard(player.keyBindingKeyboard))
-      else
-        this.dancepad.push(new DancePadGamepad(player.gamepad!.index!, player.keyBindingGamepad))
-    }
+    players.forEach((player, index) => {
+      this.dancepad.push(CreateDancePad(player))
+      if (player.gamepadId === undefined) return
+      const name = player.name ?? `Player ${index + 1}`
+      const gamepadName = GamepadService.GetDisplayName(player.gamepadId)
+      const status = this.gamepadService.GetStatus(player.gamepadId)
+      if (status === GamepadStatus.Plugged || status === GamepadStatus.Unknown)
+        AppComponent.PresentOkToast(`${name}: press a button of ${gamepadName} to activate it`)
+      else if (status === GamepadStatus.Unplugged)
+        AppComponent.PresentWarningToast(`${name}: ${gamepadName} is not plugged in`)
+    })
   }
 
   readonly blockedKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Spacebar', 'Enter']

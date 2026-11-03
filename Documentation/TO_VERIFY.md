@@ -542,3 +542,69 @@ Tested: partly played by hand, lint and build.
 
 → To verify:
   - A chart with a hold missing its tail: that arrow shows as a one-row hold
+
+## Commit: Follow the gamepads by id, through disconnections and reconnections
+Link: not known yet (the commit holds its own entry)
+
+Tested: unit tests with a mocked `navigator.getGamepads()`, lint and build. Not played with a real gamepad.
+
+- dancepad-gamepad.ts: the pad finds its gamepad by id each frame (known index first); a missing gamepad gives no input and releases its arrows
+- dancepad.factory.ts, gameRound.ts, browse.page.ts: one factory builds the pad of a player
+- player.ts: `gamepadId` replaces `gamepad` (`{ index, id }`); a player saved before keeps its gamepad
+- gamepad.service.ts: toast when the gamepad of a player connects or disconnects
+- userconfig.service.ts, player-selection.page.ts, pad-test.page.ts: no index stored anymore, the gamepad is looked up by id
+
+→ To verify:
+  - A player saved before this version keeps their gamepad and their key mapping
+  - Play with a gamepad: every arrow responds
+  - Unplug the gamepad during a game: warning toast, no arrow stays held; plug it back: toast, and it plays again (after a button press if the browser asks for one)
+  - Same in Browse: unplug, plug back, the gamepad navigates again
+  - Options, pad test: bind a button of a gamepad; with the gamepad unplugged, a warning toast and the binding popup closes
+
+## Commit: Let a game start before the browser has seen the gamepads
+Link: not known yet (the commit holds its own entry)
+
+Tested: lint, build and unit tests. Not played with a real gamepad.
+
+- userconfig.service.ts: players are ready once each one has a gamepad chosen, seen by the browser or not
+- player-selection.page.ts: the "press a button" line no longer blocks the start
+- browse.page.ts: a toast asks each player whose gamepad is not seen yet to press one of its buttons
+
+→ To verify:
+  - Reload the app with a gamepad plugged, without touching it: Start is enabled, Browse shows the "press a button" toast
+  - Press a button of the gamepad: the "connected" toast shows, and the gamepad navigates; judge whether these two toasts are smooth enough
+
+## Commit: Desktop: tell whether a gamepad is plugged in before the webview sees it
+Link: not known yet (the commit holds its own entry)
+
+Tested: `cargo check`, lint, build, unit tests with the Tauri IPC mocked. Not run in the desktop app, no real gamepad.
+
+- src-tauri/src/gamepad.rs, lib.rs: a thread watches the gamepads with `gilrs`, `list_gamepads` lists them, `native-gamepad-connected` / `native-gamepad-disconnected` are emitted
+- native-gamepad.service.ts: desktop only, keeps the list and matches a webview gamepad id by its vendor and product ids
+- gamepad.service.ts: `GetStatus()` (active, plugged, unplugged, unknown), toast when the gamepad of a player is plugged in before the webview sees it
+- player-selection.page.ts, browse.page.ts: an unplugged gamepad is told apart from one waiting for a button press
+
+→ To verify (desktop app):
+  - `npx tauri dev` starts, the console logs the gamepads plugged in
+  - A gamepad with "Vendor: … Product: …" in its id (most dance pads), plugged before the app starts: player selection says to press a button; unplugged: says it is not plugged in
+  - Plug it while the app runs: the "plugged in, press one of its buttons" toast shows, then "connected" after a press
+  - An XInput gamepad (Xbox): no vendor in its id, the status stays "press a button" as in the browser
+  - The inputs in game are not slowed down by the watch thread
+
+## Commit: Gamepad lists: web names, system gamepads before a button press, OnPush refreshes
+Link: not known yet (the commit holds its own entry)
+
+Tested: lint, build and unit tests. Not run in the desktop app, no real gamepad.
+
+- gamepad.service.ts: the list holds the webview gamepads by their short name, the players' gamepads not seen yet ("[disconnected]" unless the system sees them), and the system-only gamepads, disabled with "press a button"
+- native-gamepad.service.ts: the system list is a signal, a system gamepad is matched to webview ids by vendor and product
+- pad-test.page.*, player-selection.page.html: options tracked by id and label so that ion-select refreshes its text; key mapping refreshed right after a bind; "Not Set" no longer shown for button 0
+- player-selection.page.*: player 0 shows the logged user from the signal
+- browse.page.ts, gamepad.service.ts, pad-test.page.ts: toasts and messages show the short gamepad name
+
+→ To verify:
+  - Options, key mapping: the LEFT arrow bound to button 0 shows "0", and a new binding shows at once, gamepad and keyboard
+  - Desktop, gamepad given to no player: listed greyed "Retro Controller (press a button)"; a button press turns it into "USB Gamepad", selectable
+  - Desktop, gamepad given to a player, app restarted without a press: the selects show "USB Gamepad" directly
+  - Gamepad given to a player, unplugged (or in the browser before a press): "[disconnected] USB Gamepad", the binding kept; a press removes "[disconnected]" in the select at once
+  - Player selection, logged in: player 0 shows the user name at once, not "Anonymous"

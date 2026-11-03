@@ -7,8 +7,8 @@
       <ion-card-subtitle>If your gamepad is connected but not in the list, press a key !</ion-card-subtitle>
     </ion-card-header>
     <ion-card-content>
-      @for (gamepad of this.gamepadService.GetGamepads(); track gamepad) {
-        <ion-item> {{ gamepad.id }} </ion-item>
+      @for (gamepad of this.gamepadService.GetGamepads(); track gamepad.id) {
+        <ion-item> {{ gamepad.label }} </ion-item>
       }
     </ion-card-content>
   </ion-card>
@@ -23,16 +23,17 @@
           </ion-card-header>
           <ion-card-content>
             <ion-item>
-              <ion-select placeholder="Select a gamepad" [value]="player.gamepad?.id" (ionChange)="UpdateGamepad(index, $event.detail.value)">
-                @for (gamepad of this.gamepadService.GetGamepads(); track gamepad) {
-                  <ion-select-option [value]="gamepad.id">
-                    {{ gamepad.id }}
+              <ion-select placeholder="Select a gamepad" [value]="player.gamepadId" (ionChange)="UpdateGamepad(index, $event.detail.value)">
+                <!-- Tracked by label too: ion-select only refreshes its shown text when an option is added, not when its text changes -->
+                @for (gamepad of this.gamepadService.GetGamepads(); track gamepad.id + gamepad.label) {
+                  <ion-select-option [value]="gamepad.id" [disabled]="gamepad.isDisabled">
+                    {{ gamepad.label }}
                   </ion-select-option>
                 }
               </ion-select>
             </ion-item>
             <ion-item>
-              @if (player.gamepad) {
+              @if (player.gamepadId) {
                 <ion-button expand="full" shape="round" fill="outline" [disabled]="playerIndexSelected === index" (click)="SelectPlayer(player,index)">
                   Key mapping
                 </ion-button>
@@ -43,19 +44,19 @@
       }
     </div>
 
-    @if(playerSelected && playerSelected.gamepad){
+    @if(playerSelected && playerSelected.gamepadId){
     <ion-card>
       <ion-card-header>
         <ion-card-title>Player key map : {{ playerSelected.name }}</ion-card-title>
       </ion-card-header>
-      <ion-card-subtitle> {{ playerSelected.gamepad.id }} </ion-card-subtitle>
+      <ion-card-subtitle> {{ GetDisplayName(playerSelected.gamepadId) }} </ion-card-subtitle>
       <ion-card-content>
         <div class="keybind-container">
           @for (arrowKey of arrowKeys; track arrowKey; let index = $index) {
             <ion-item>
               <ion-label color="primary"> {{ArrowDirection[arrowKey].toUpperCase()}} </ion-label>
-              <ion-label> {{ (playerSelected.gamepad.index === -1 ? keyboardBindings.get(arrowKey) :
-                gampadBindings.get(arrowKey)) || 'Not Set' }} </ion-label>
+              <ion-label> {{ (playerSelected.gamepadId === KEYBOARD_ID ? keyboardBindings.get(arrowKey) :
+                gampadBindings.get(arrowKey)) ?? 'Not Set' }} </ion-label>
               <ion-button slot="end" size="small" color="tertiary" (click)="OpenBindPopover(arrowKey)"> Bind
               </ion-button>
             </ion-item>

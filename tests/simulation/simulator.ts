@@ -86,7 +86,7 @@ export function PerfectInputs(music: MusicDto, chart: NoteDataDto, delay: number
 
 function KeyboardPlayer(): Player {
   const player = new Player()
-  player.gamepad = { index: -1, id: "keyboard" }
+  player.gamepadId = Player.KEYBOARD_ID
   return player
 }
 

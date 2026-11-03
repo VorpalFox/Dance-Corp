@@ -49,15 +49,7 @@ export class UserConfigService {
 
     InstanciatePlayer(index: number): Player {
         const storedPlayer = localStorage.getItem(this.PLAYERS_STORAGE_KEY(index))
-        const player: Player = storedPlayer ? Player.FromJSON(JSON.parse(storedPlayer)) : new Player()
-
-        // Reassociating the gamepad if it exists and is valid
-        if (player.gamepad && player.gamepad.index != -1) {
-            const gamepadId = player.gamepad.id
-            const matchingGamepad = navigator.getGamepads().find(g => g?.id === gamepadId)
-            player.gamepad.index = matchingGamepad ? matchingGamepad.index : null
-        }
-        return player
+        return storedPlayer ? Player.FromJSON(JSON.parse(storedPlayer)) : new Player()
     }
 
     GetConfig(): UserConfig {
@@ -95,8 +87,9 @@ export class UserConfigService {
         this.UpdateConfig("playerNumber", this.players.length)
     }
 
+    // A gamepad not seen yet does not block: it plays from its first button press
     ArePlayersReady(): boolean {
-        return this.players.every(player => !!player.gamepad?.id && player.gamepad.index !== null)
+        return this.players.every(player => player.gamepadId !== undefined)
     }
 
     UpdateConfig<K extends keyof UserConfig>(option: K, value: UserConfig[K]): void {
@@ -129,7 +122,6 @@ export class UserConfigService {
             localStorage.removeItem(this.PLAYERS_STORAGE_KEY(index))
         }
     }
-
 }
 
 export class UserConfig {
