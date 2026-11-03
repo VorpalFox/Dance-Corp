@@ -1,6 +1,6 @@
 {
   "name": "DanceCorp",
-  "version": "1.1.7",
+  "version": "1.1.8",
   "description": "A StepMania-style rhythm game engine, rebuilt from scratch for the web browser and the desktop.",
   "author": "Fx",
   "homepage": "https://dance-corp.web.app",
